@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import Constants from 'expo-constants';
 import { tokenStorage } from '../utils/storage';
 
-const API_BASE_URL = 'http://10.0.2.2:8000';
+const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'http://10.0.2.2:8000';
 const API_TIMEOUT = 10000;
 
 
