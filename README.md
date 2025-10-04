@@ -1,6 +1,6 @@
-# Welcome to your Expo app 👋
+# BodyBack App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native application for fitness training with separate interfaces for customers and trainers.
 
 ## Get started
 
@@ -24,6 +24,55 @@ In the output, you'll find options to open the app in a
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
+## Running with WSL2 and Android Emulator (Windows)
+
+If you're developing on WSL2 with Android Studio running on Windows:
+
+1. **Start Android Studio emulator on Windows**
+
+2. **Enable port forwarding** (run in PowerShell as Administrator):
+   ```powershell
+   netsh interface portproxy add v4tov4 listenport=8081 listenaddress=0.0.0.0 connectport=8081 connectaddress=172.23.154.47
+   ```
+   Note: Replace `172.23.154.47` with your WSL2 IP if different (shown when you run `npx expo start`)
+
+3. **Start Expo in WSL2**:
+   ```bash
+   npx expo start
+   ```
+
+4. **Connect from Android emulator**:
+   - Install Expo Go from Play Store
+   - Open Expo Go
+   - Tap "Enter URL manually"
+   - Enter: `localhost:8081` or `127.0.0.1:8081`
+
+### Alternative: Tunnel Mode
+If port forwarding doesn't work, use tunnel mode:
+```bash
+npx expo start --tunnel
+```
+This creates a public URL that works without network configuration.
+
+## Demo Credentials
+
+The app has two user types with demo accounts:
+
+- **Customer**: `customer@bodyback.co.za`
+- **Trainer**: `trainer@bodyback.co.za`
+
+## App Structure
+
+```
+app/
+  index.tsx           # Login screen
+  settings.tsx        # Shared settings page
+  customer/           # Customer-specific screens
+    dashboard.tsx
+  trainer/            # Trainer-specific screens
+    dashboard.tsx
+```
 
 ## Get a fresh project
 
