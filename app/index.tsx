@@ -17,7 +17,6 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, isAuthenticated, isLoading, user } = useAuth();
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
       const role = user.role?.toLowerCase();
@@ -39,16 +38,12 @@ export default function LoginScreen() {
 
     try {
       await login({ email: email.toLowerCase(), password });
-
-      // Get user data from context after login
-      // The redirect will happen via useEffect
     } catch (error: any) {
       console.error('Login error:', error);
 
       let errorMessage = 'An error occurred during login';
 
       if (error.response) {
-        // Server responded with error
         if (error.response.status === 401) {
           errorMessage = 'Incorrect email or password';
         } else if (error.response.status === 403) {
@@ -57,7 +52,6 @@ export default function LoginScreen() {
           errorMessage = error.response.data.detail;
         }
       } else if (error.request) {
-        // Request was made but no response
         errorMessage = 'Unable to connect to server. Please check your connection.';
       }
 
@@ -67,7 +61,6 @@ export default function LoginScreen() {
     }
   };
 
-  // Show loading spinner while checking auth status
   if (isLoading) {
     return (
       <View style={styles.container}>
