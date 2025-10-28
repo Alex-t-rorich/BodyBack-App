@@ -1,60 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
+import { sessionVolumeService, SessionVolume } from '@/services/sessionVolume';
 
 export default function CustomerSessions() {
-  const [sessions, setSessions] = useState([
-    {
-      id: 1,
-      month: 'January 2025',
-      sessionCount: 8,
-      status: 'pending',
-      notes: 'Client showing good progress with strength training. Focus on form improvement.',
-      sessionPlan: 'Week 1-2: Upper body focus\nWeek 3-4: Lower body and core\nCardio: 20 min warm-up each session',
-    },
-    {
-      id: 2,
-      month: 'December 2024',
-      sessionCount: 10,
-      status: 'approved',
-      notes: 'Completed all sessions. Great consistency. Ready to increase intensity.',
-      sessionPlan: 'Progressive overload on main lifts\nIntroduced HIIT cardio\nFlexibility work added',
-    },
-    {
-      id: 3,
-      month: 'November 2024',
-      sessionCount: 12,
-      status: 'disapproved',
-      notes: 'Started with basic conditioning. Built good foundation.',
-      sessionPlan: 'Foundation building phase\nFocus on proper form\nGradual intensity increase',
-    },
-    {
-      id: 4,
-      month: 'October 2024',
-      sessionCount: 9,
-      status: 'approved',
-      notes: 'Initial assessment completed. Established baseline metrics.',
-      sessionPlan: 'Assessment week\nIntroductory workouts\nMobility focus',
-    },
-  ]);
+  const [sessions, setSessions] = useState<SessionVolume[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
-  const handleApprove = (id: number) => {
-    setSessions(sessions.map(session =>
-      session.id === id ? { ...session, status: 'approved' } : session
-    ));
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      setIsLoading(true);
+      // Fetch session volumes for the current customer
+      // The API will automatically filter to show only this customer's volumes
+      const volumes = await sessionVolumeService.getSessionVolumes();
+      setSessions(volumes);
+    } catch (error: any) {
+      console.error('Error loading sessions:', error);
+      Alert.alert('Error', 'Failed to load session volumes');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDisapprove = (id: number) => {
-    setSessions(sessions.map(session =>
-      session.id === id ? { ...session, status: 'disapproved' } : session
-    ));
+  const handleApprove = async (id: string) => {
+    try {
+      setApprovingId(id);
+      await sessionVolumeService.approveSessionVolume(id);
+      Alert.alert('Success', 'Session volume approved successfully');
+      // Reload sessions to get updated status
+      await loadSessions();
+    } catch (error: any) {
+      console.error('Error approving session:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to approve session volume'
+      );
+    } finally {
+      setApprovingId(null);
+    }
   };
+
+  const formatPeriod = (period: string) => {
+    const date = new Date(period);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'submitted':
+      case 'read':
+        return { text: 'Pending Approval', color: '#FF9800' };
+      case 'approved':
+        return { text: '✓ Approved', color: '#4CAF50' };
+      case 'rejected':
+        return { text: '✗ Rejected', color: '#f44336' };
+      case 'draft':
+        return { text: 'Draft', color: '#9E9E9E' };
+      default:
+        return { text: status, color: '#9E9E9E' };
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+        <Text style={styles.loadingText}>Loading sessions...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -65,67 +92,89 @@ export default function CustomerSessions() {
         >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Session History</Text>
+        <Text style={styles.title}>Session Volumes</Text>
       </View>
 
       <View style={styles.content}>
-        {sessions.map((session) => (
-          <View key={session.id} style={styles.sessionCard}>
-            <View style={styles.sessionInfo}>
-              <Text style={styles.monthText}>{session.month}</Text>
-              <View style={styles.sessionCountBox}>
-                <Text style={styles.sessionCountLabel}>Sessions</Text>
-                <Text style={styles.sessionCount}>{session.sessionCount}</Text>
-              </View>
-            </View>
-
-            {session.status === 'pending' ? (
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.approveButton]}
-                  onPress={() => handleApprove(session.id)}
-                >
-                  <Text style={styles.approveButtonText}>Approve</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.disapproveButton]}
-                  onPress={() => handleDisapprove(session.id)}
-                >
-                  <Text style={styles.disapproveButtonText}>Disapprove</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={[
-                styles.statusIndicator,
-                session.status === 'approved' ? styles.approvedStatus : styles.disapprovedStatus
-              ]}>
-                <Text style={[
-                  styles.statusIndicatorText,
-                  session.status === 'approved' ? styles.approvedText : styles.disapprovedText
-                ]}>
-                  {session.status === 'approved' ? '✓ Approved' : '✗ Disapproved'}
-                </Text>
-              </View>
-            )}
-
-            {(session.notes || session.sessionPlan) && (
-              <View style={styles.sessionDetailsPreview}>
-                {session.notes && (
-                  <>
-                    <Text style={styles.previewLabel}>Trainer Notes:</Text>
-                    <Text style={styles.previewText}>{session.notes}</Text>
-                  </>
-                )}
-                {session.sessionPlan && (
-                  <>
-                    <Text style={styles.previewLabel}>Session Plan:</Text>
-                    <Text style={styles.previewText}>{session.sessionPlan}</Text>
-                  </>
-                )}
-              </View>
-            )}
+        {sessions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No session volumes yet</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Your trainer will create session volumes for you to review
+            </Text>
           </View>
-        ))}
+        ) : (
+          sessions.map((session) => {
+            const statusDisplay = getStatusDisplay(session.status);
+            const canApprove = session.status === 'submitted' || session.status === 'read';
+            const isApproving = approvingId === session.id;
+
+            return (
+              <View key={session.id} style={styles.sessionCard}>
+                <View style={styles.sessionInfo}>
+                  <Text style={styles.monthText}>{formatPeriod(session.period)}</Text>
+                  <View style={styles.sessionCountBox}>
+                    <Text style={styles.sessionCountLabel}>Sessions</Text>
+                    <Text style={styles.sessionCount}>{session.session_count}</Text>
+                  </View>
+                </View>
+
+                {session.trainer && (
+                  <Text style={styles.trainerText}>
+                    Trainer: {session.trainer.first_name} {session.trainer.last_name}
+                  </Text>
+                )}
+
+                {canApprove ? (
+                  <TouchableOpacity
+                    style={[styles.approveButton, isApproving && styles.approveButtonDisabled]}
+                    onPress={() => handleApprove(session.id)}
+                    disabled={isApproving}
+                  >
+                    {isApproving ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Text style={styles.approveButtonText}>Approve</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <View
+                    style={[
+                      styles.statusIndicator,
+                      { backgroundColor: statusDisplay.color + '20' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusIndicatorText,
+                        { color: statusDisplay.color },
+                      ]}
+                    >
+                      {statusDisplay.text}
+                    </Text>
+                  </View>
+                )}
+
+                {(session.notes || session.plans) && (
+                  <View style={styles.sessionDetailsPreview}>
+                    {session.plans && (
+                      <>
+                        <Text style={styles.previewLabel}>Session Plan:</Text>
+                        <Text style={styles.previewText}>{session.plans}</Text>
+                      </>
+                    )}
+                    {session.notes && (
+                      <>
+                        <Text style={styles.previewLabel}>Trainer Notes:</Text>
+                        <Text style={styles.previewText}>{session.notes}</Text>
+                      </>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );
@@ -135,6 +184,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   header: {
     backgroundColor: '#4CAF50',
@@ -159,6 +219,23 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
   sessionCard: {
     backgroundColor: 'white',
     padding: 20,
@@ -177,12 +254,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
   },
   monthText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+    flex: 1,
   },
   sessionCountBox: {
     alignItems: 'center',
@@ -197,30 +275,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4CAF50',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 10,
+  trainerText: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 15,
-  },
-  actionButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
   },
   approveButton: {
     backgroundColor: '#4CAF50',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 15,
   },
-  disapproveButton: {
-    backgroundColor: '#f44336',
+  approveButtonDisabled: {
+    opacity: 0.6,
   },
   approveButtonText: {
     color: 'white',
     fontWeight: '600',
-  },
-  disapproveButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    fontSize: 16,
   },
   statusIndicator: {
     padding: 12,
@@ -228,20 +301,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
-  approvedStatus: {
-    backgroundColor: '#e8f5e9',
-  },
-  disapprovedStatus: {
-    backgroundColor: '#ffebee',
-  },
   statusIndicatorText: {
     fontWeight: '600',
-  },
-  approvedText: {
-    color: '#4CAF50',
-  },
-  disapprovedText: {
-    color: '#f44336',
+    fontSize: 14,
   },
   sessionDetailsPreview: {
     marginTop: 15,

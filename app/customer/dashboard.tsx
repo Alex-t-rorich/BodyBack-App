@@ -1,17 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { qrCodeService, QRCodeDisplay } from '@/services/qrCode';
 
 export default function CustomerDashboard() {
   const { user, logout } = useAuth();
+  const [qrCode, setQrCode] = useState<QRCodeDisplay | null>(null);
+  const [isLoadingQR, setIsLoadingQR] = useState(true);
+
+  useEffect(() => {
+    loadQRCode();
+  }, []);
+
+  const loadQRCode = async () => {
+    try {
+      setIsLoadingQR(true);
+      const qrData = await qrCodeService.getMyQRCode();
+      setQrCode(qrData);
+    } catch (error: any) {
+      console.error('Error loading QR code:', error);
+      Alert.alert('Error', 'Failed to load QR code');
+    } finally {
+      setIsLoadingQR(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -41,10 +64,25 @@ export default function CustomerDashboard() {
       <View style={styles.qrSection}>
         <View style={styles.qrCard}>
           <Text style={styles.qrTitle}>Your Member QR Code</Text>
-          <View style={styles.qrCodeBox}>
-            <Text style={styles.qrCodeText}>QR CODE</Text>
-          </View>
-          <Text style={styles.qrDescription}>Show this at check-in</Text>
+          {isLoadingQR ? (
+            <View style={styles.qrCodeBox}>
+              <ActivityIndicator size="large" color="#4CAF50" />
+            </View>
+          ) : qrCode ? (
+            <>
+              <Image
+                source={{ uri: qrCodeService.getQRCodeImageUrl(qrCode.token) }}
+                style={styles.qrCodeImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.qrDescription}>{qrCode.instructions}</Text>
+              <Text style={styles.qrUserName}>{qrCode.user_name}</Text>
+            </>
+          ) : (
+            <View style={styles.qrCodeBox}>
+              <Text style={styles.qrCodeText}>Failed to load</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -179,6 +217,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#ddd',
   },
+  qrCodeImage: {
+    width: 220,
+    height: 220,
+    marginBottom: 15,
+  },
   qrCodeText: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -187,7 +230,15 @@ const styles = StyleSheet.create({
   qrDescription: {
     fontSize: 14,
     color: '#666',
-    marginTop: 15,
+    marginTop: 10,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  qrUserName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 10,
   },
   sessionButton: {
     backgroundColor: '#4CAF50',

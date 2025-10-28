@@ -1,56 +1,52 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { trainerService, Customer } from '@/services/trainer';
 
 export default function TrainerCustomers() {
-  const customers = [
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      email: 'sarah.j@email.com',
-      sessionsThisMonth: 6,
-      totalSessions: 48,
-      status: 'active',
-    },
-    {
-      id: 2,
-      name: 'Mike Wilson',
-      email: 'mike.w@email.com',
-      sessionsThisMonth: 8,
-      totalSessions: 72,
-      status: 'active',
-    },
-    {
-      id: 3,
-      name: 'Emma Davis',
-      email: 'emma.d@email.com',
-      sessionsThisMonth: 4,
-      totalSessions: 36,
-      status: 'active',
-    },
-    {
-      id: 4,
-      name: 'James Brown',
-      email: 'james.b@email.com',
-      sessionsThisMonth: 0,
-      totalSessions: 24,
-      status: 'inactive',
-    },
-    {
-      id: 5,
-      name: 'Lisa Anderson',
-      email: 'lisa.a@email.com',
-      sessionsThisMonth: 10,
-      totalSessions: 120,
-      status: 'active',
-    },
-  ];
+  const { user } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const loadCustomers = async () => {
+    if (!user?.user_id) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const data = await trainerService.getMyCustomers(user.user_id);
+      setCustomers(data);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+      Alert.alert('Error', 'Failed to load customers');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={styles.loadingText}>Loading customers...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -65,45 +61,55 @@ export default function TrainerCustomers() {
       </View>
 
       <View style={styles.content}>
-        {customers.map((customer) => (
-          <TouchableOpacity
-            key={customer.id}
-            style={styles.customerCard}
-            onPress={() => router.push(`/trainer/customer-detail?id=${customer.id}&name=${customer.name}&email=${customer.email}`)}
-          >
-            <View style={styles.customerHeader}>
-              <View>
-                <Text style={styles.customerName}>{customer.name}</Text>
-                <Text style={styles.customerEmail}>{customer.email}</Text>
-              </View>
-              <View style={[
-                styles.statusBadge,
-                customer.status === 'active' ? styles.activeBadge : styles.inactiveBadge
-              ]}>
-                <Text style={[
-                  styles.statusText,
-                  customer.status === 'active' ? styles.activeText : styles.inactiveText
-                ]}>
-                  {customer.status}
-                </Text>
-              </View>
-            </View>
+        {customers.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No customers assigned yet</Text>
+            <Text style={styles.emptySubText}>
+              Customers will appear here once they are assigned to you
+            </Text>
+          </View>
+        ) : (
+          customers.map((customer) => {
+            const customerName = customer.user.first_name && customer.user.last_name
+              ? `${customer.user.first_name} ${customer.user.last_name}`
+              : customer.user.email;
 
-            <View style={styles.customerStats}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{customer.sessionsThisMonth}</Text>
-                <Text style={styles.statLabel}>This Month</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{customer.totalSessions}</Text>
-                <Text style={styles.statLabel}>Total Sessions</Text>
-              </View>
-            </View>
+            return (
+              <TouchableOpacity
+                key={customer.user_id}
+                style={styles.customerCard}
+                onPress={() => router.push(`/trainer/customer-detail?id=${customer.user_id}&name=${customerName}&email=${customer.user.email}`)}
+              >
+                <View style={styles.customerHeader}>
+                  <View>
+                    <Text style={styles.customerName}>{customerName}</Text>
+                    <Text style={styles.customerEmail}>{customer.user.email}</Text>
+                    {customer.user.phone_number && (
+                      <Text style={styles.customerPhone}>{customer.user.phone_number}</Text>
+                    )}
+                  </View>
+                  <View style={styles.activeBadge}>
+                    <Text style={styles.activeText}>ACTIVE</Text>
+                  </View>
+                </View>
 
-            <Text style={styles.viewDetailsText}>Tap to view details →</Text>
-          </TouchableOpacity>
-        ))}
+                <View style={styles.customerStats}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>0</Text>
+                    <Text style={styles.statLabel}>This Month</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>0</Text>
+                    <Text style={styles.statLabel}>Total Sessions</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.viewDetailsText}>Tap to view details →</Text>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );
@@ -113,6 +119,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  customerPhone: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
   },
   header: {
     backgroundColor: '#2196F3',

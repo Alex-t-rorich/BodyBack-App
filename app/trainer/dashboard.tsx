@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,20 +6,37 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { trainerService, TrainerStats } from '@/services/trainer';
 
 export default function TrainerDashboard() {
   const { user, logout } = useAuth();
+  const [stats, setStats] = useState<TrainerStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setIsLoading(true);
+      const data = await trainerService.getMyStats();
+      setStats(data);
+    } catch (error) {
+      console.error('Error loading trainer stats:', error);
+      Alert.alert('Error', 'Failed to load trainer statistics');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleScanQR = () => {
-    Alert.alert(
-      'QR Scanner',
-      'Camera would open here to scan customer QR code',
-      [{ text: 'OK' }]
-    );
+    router.push('/trainer/qr-scanner');
   };
 
   const handleLogout = async () => {
@@ -66,14 +83,23 @@ export default function TrainerDashboard() {
       </View>
 
       <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>12</Text>
-          <Text style={styles.statLabel}>Active Clients</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>8</Text>
-          <Text style={styles.statLabel}>Sessions Today</Text>
-        </View>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>Loading stats...</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.statBox}>
+              <Text style={styles.statNumber}>{stats?.active_customers || 0}</Text>
+              <Text style={styles.statLabel}>Active Clients</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statNumber}>{stats?.sessions_this_month || 0}</Text>
+              <Text style={styles.statLabel}>Sessions This Month</Text>
+            </View>
+          </>
+        )}
       </View>
 
         <TouchableOpacity
@@ -122,6 +148,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 20,
     justifyContent: 'space-around',
+    minHeight: 120,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#666',
   },
   statBox: {
     backgroundColor: 'white',
