@@ -29,7 +29,19 @@ export default function CustomerSessions() {
       setSessions(volumes);
     } catch (error: any) {
       console.error('Error loading sessions:', error);
-      Alert.alert('Error', 'Failed to load session volumes');
+
+      // Handle error detail which could be string or array
+      let errorMessage = 'Failed to load session volumes';
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          errorMessage = detail.map((d: any) => d.msg || d).join(', ');
+        } else {
+          errorMessage = detail;
+        }
+      }
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -44,10 +56,19 @@ export default function CustomerSessions() {
       await loadSessions();
     } catch (error: any) {
       console.error('Error approving session:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data?.detail || 'Failed to approve session volume'
-      );
+
+      // Handle error detail which could be string or array
+      let errorMessage = 'Failed to approve session volume';
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          errorMessage = detail.map((d: any) => d.msg || d).join(', ');
+        } else {
+          errorMessage = detail;
+        }
+      }
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setApprovingId(null);
     }

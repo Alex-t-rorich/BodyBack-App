@@ -133,7 +133,24 @@ export const sessionVolumeService = {
     updated_at: string;
   }> {
     const response = await apiClient.post(`/api/v1/session-volumes/${id}/approve`, {
+      status: 'approved',
       notes: notes || undefined,
+    });
+    return response.data;
+  },
+
+  /**
+   * Reject a session volume (customer only)
+   */
+  async rejectSessionVolume(id: string, notes: string): Promise<{
+    success: boolean;
+    message: string;
+    new_status: string;
+    updated_at: string;
+  }> {
+    const response = await apiClient.post(`/api/v1/session-volumes/${id}/reject`, {
+      status: 'rejected',
+      notes,
     });
     return response.data;
   },
